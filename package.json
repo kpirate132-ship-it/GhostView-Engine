@@ -1,0 +1,15 @@
+{
+  "name": "ghostview-engine",
+  "version": "1.0.0",
+  "description": "GhostView Mediator Engine",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}
