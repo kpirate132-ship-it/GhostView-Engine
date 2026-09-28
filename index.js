@@ -6,14 +6,14 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
-// متصفح وهمي لتجنب الحظر
-const axiosConfig = {
+// إعدادات المتصفح الوهمي لتجاوز الحظر
+const client = axios.create({
     headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
     }
-};
+});
 
-app.get('/', (req, res) => res.send('محرك GhostView الحقيقي يعمل بنجاح!'));
+app.get('/', (req, res) => res.send('محرك GhostView الذكي يعمل!'));
 
 app.get('/api/search/:platform/:username', async (req, res) => {
     const { platform, username } = req.params;
@@ -22,32 +22,31 @@ app.get('/api/search/:platform/:username', async (req, res) => {
         let results = {
             username: username,
             avatar: `https://unavatar.io/${platform}/${username}`,
-            bio: '', followers: '-', following: '-', posts: '-', stories: []
+            bio: 'حساب عام متاح للعرض',
+            followers: '-', following: '-', posts: '-',
+            stories: []
         };
 
         if (platform === 'instagram') {
-            // استخدام وسيط Imginn لجلب البيانات الحقيقية بدون حساب
-            const resp = await axios.get(`https://imginn.com/p/${username}/`, axiosConfig);
+            // المصدر: Picuki (أقوى وسيط حالياً)
+            const resp = await client.get(`https://www.picuki.com/profile/${username}`);
             const $ = cheerio.load(resp.data);
             
-            results.bio = $('.info .description').text().trim() || "حساب إنستغرام عام";
-            results.followers = $('.info .stats b').eq(1).text() || "Hidden";
-            results.following = $('.info .stats b').eq(2).text() || "Hidden";
-            results.posts = $('.info .stats b').eq(0).text() || "0";
+            results.bio = $('.profile-description').text().trim();
+            results.followers = $('.followed_by').text().trim();
+            results.following = $('.following').text().trim();
+            results.posts = $('.posts_count').text().trim();
             
-            // جلب الستوريات والمنشورات الحقيقية
-            $('.items .item img').each((i, el) => {
-                let img = $(el).attr('data-src') || $(el).attr('src');
-                if (img && i < 12) {
-                    results.stories.push(img.startsWith('//') ? 'https:' + img : img);
-                }
+            // جلب الستوريات والمنشورات
+            $('.post-image img').each((i, el) => {
+                if (i < 9) results.stories.push($(el).attr('src'));
             });
         } 
         else if (platform === 'tiktok') {
-            const resp = await axios.get(`https://urlebird.com/user/${username}/`, axiosConfig);
+            // المصدر: Urlebird
+            const resp = await client.get(`https://urlebird.com/user/${username}/`);
             const $ = cheerio.load(resp.data);
             
-            results.bio = $('.user-info .info').text().trim();
             results.followers = $('.user-info .stats span').eq(1).text().split(' ')[0];
             results.following = $('.user-info .stats span').eq(0).text().split(' ')[0];
             
@@ -55,19 +54,16 @@ app.get('/api/search/:platform/:username', async (req, res) => {
                 if (i < 9) results.stories.push($(el).attr('src'));
             });
         }
-        else if (platform === 'snapchat') {
-            const resp = await axios.get(`https://story.snapchat.com/s/${username}`, axiosConfig);
-            const $ = cheerio.load(resp.data);
-            results.bio = "قصص سناب شات العامة المتاحة";
-            $('img').each((i, el) => {
-                let src = $(el).attr('src');
-                if (src && src.includes('story') && i < 9) results.stories.push(src);
-            });
-        }
 
         res.json(results);
     } catch (error) {
-        res.status(404).json({ error: 'الحساب خاص أو تعذر جلب البيانات حالياً' });
+        // في حال الحظر، نرسل بيانات تقريبية لكي لا يظهر الموقع فارغاً
+        res.json({
+            username: username,
+            avatar: `https://unavatar.io/${platform}/${username}`,
+            bio: 'الحساب محمي حالياً أو خاص، جرب يوزر آخر.',
+            followers: 'N/A', following: 'N/A', stories: []
+        });
     }
 });
 
